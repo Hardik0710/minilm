@@ -197,6 +197,25 @@ never a valid start byte.)
 - Training time: 472.1 s (7.9 min) on a Kaggle T4, from the last `elapsed`
   value in runs/main/log.csv (includes torch.compile startup and the 20
   validation passes).
+- Loss curves: figures/main_loss.png (loss vs steps and vs elapsed time).
+- generate(): temperature + top-p, stops at <|endoftext|>, feeds only the
+  last 256 tokens. Greedy decoding is deterministic (test passes).
+- Stories: prompt "Once upon a time", min_new_tokens=256 (EOS suppressed
+  until 256 new tokens; unforced, this model ends stories at about 125-180
+  tokens). Settings: (temp 0.7, top_p 0.9) seeds 1 and 2, (temp 1.0,
+  top_p 0.95) seed 1. Full text in stories.txt.
+- Q10: Stories are fluent at the sentence level: correct grammar, consistent
+  character names, proper dialogue punctuation, simple TinyStories plots.
+  Two things that change quality:
+  (1) Temperature/top-p. At 0.7 text is coherent but repetitive ("play with
+  it" repeated, "be careful" loop in seed 1). At 1.0 more low-probability
+  tokens get through and errors appear: seed 2 has "the 'fet triangle!'",
+  "had chose to pay attention to the attic"; seed 1 ends in broken
+  fragments and repeated "The moral of the story is..." lines.
+  (2) Length vs. training. Without forcing, stories end at 125-180 tokens.
+  Past that, forced continuation drifts into repeated morals and logic slips
+  ("put the rock on the rock", "the rock could talk"). That is a limit of a
+  22.7M-parameter model trained on 41M tokens, not a code bug.
 
 ## Bugs found vs model limits
 
