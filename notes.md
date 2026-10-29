@@ -86,6 +86,15 @@ never a valid start byte.)
   being enough when the vocab exceeds 65,536 tokens (e.g. large multilingual
   vocabularies of 100k+), where uint32 is needed.
 
+## Part 3
+- Slow attention matches F.scaled_dot_product_attention (3-D and 4-D,
+  atol 1e-5) and passes a no-future-leak test. pytest: 12 passed.
+- Q3: Dot products of random d_k=32 vectors had std 5.57 (theory sqrt(32)=5.66);
+  after dividing by sqrt(d_k) the std was 0.98. Without scaling, softmax over
+  such scores was nearly one-hot (0.63 and 0.36 on two entries, others
+  ~1e-4 to 1e-6), which gives near-zero gradients for most positions. With
+  scaling the weights were spread (0.03 to 0.34), keeping gradients healthy.
+
 ## Bugs found vs model limits
 
 ### Bugs / mistakes in my setup or code (found and fixed)
