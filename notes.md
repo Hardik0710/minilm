@@ -94,6 +94,16 @@ never a valid start byte.)
   such scores was nearly one-hot (0.63 and 0.36 on two entries, others
   ~1e-4 to 1e-6), which gives near-zero gradients for most positions. With
   scaling the weights were spread (0.03 to 0.34), keeping gradients healthy.
+- RoPE (minilm/model/rope.py): matches a slow full block-diagonal rotation
+  matrix (atol 1e-5), preserves vector norm, position 0 is identity, shapes
+  preserved with extra batch dims, cos/sin buffers not in state_dict.
+  pytest: 18 passed.
+- Q4: with the same q and k placed at every position, offset i-j=3 gave
+  dot = -3.482756, -3.482755, -3.482755, -3.482756 at (i,j) = (3,0), (10,7),
+  (50,47), (100,97). Offsets 0, 1, 5, 20 gave -2.05, -3.04, -1.44, -1.51.
+  Reason: rotating q by angle i*w and k by j*w gives q . R((j-i)w) k since
+  R(a)^T R(b) = R(b-a); absolute position cancels, only i-j remains.
+  Differences in the last digit are float32 rounding.
 
 ## Bugs found vs model limits
 
