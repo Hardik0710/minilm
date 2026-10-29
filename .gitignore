@@ -1,0 +1,11 @@
+data/
+*.npy
+*.pt
+.venv/
+__pycache__/
+.pytest_cache/
+wandb/
+tok_valid/
+tok_train/
+vocab.json
+merges.txt
