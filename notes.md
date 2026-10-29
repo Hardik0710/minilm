@@ -140,6 +140,30 @@ never a valid start byte.)
   the gradient m and of the squared gradient v), total about 363 MB before
   activations.
 - torch.compile speedup: (TODO, measure on GPU)
+- fp16 vs fp32 loss test: (TODO, runs on Colab; skipped on laptop)
+## Part 6
+- train.py: all model/optimizer settings from the command line, np.load with
+  mmap_mode="r", validation on a fixed set of 20 batches (seeded once, reused
+  every eval), CSV logging (step, train_loss, val_loss, lr, grad_norm,
+  elapsed), checkpoint every N steps, --resume. Gradients are unscaled
+  before clipping (in train_step).
+- Check 1 (single batch, tiny model 1.36M params, CPU, lr 3e-3, 300 steps):
+  loss 9.34 -> 0.0032. Initial loss matches ln(10000)=9.21. Grad norm
+  peaked at 1.01 (step 20) and decayed to 0.002, no NaN. LR warmed up to
+  3e-3 by step 20 and decayed to 3e-4 at step 300. Val loss rose from 7.35
+  to 10.39 as the model memorised the one batch, which shows validation is
+  held out from the training batch. Plot: figures/single.png
+- Check 2 (resume, tiny model, 200 steps, stopped at 100): after resume the
+  lr continued on the same cosine curve (5.16e-4 at step 110, 1.00e-4 at
+  step 200), with no loss spike. Val loss at step 150/200: 5.3520/5.2694
+  resumed vs 5.3515/5.2695 uninterrupted. Training losses differ slightly
+  per step because batches are sampled differently after resume (same trend,
+  small per-step noise). Exact reproduction is covered by
+  test_checkpoint_resume_reproduces_losses. Plot: figures/resume.png
+- Check 3 (grad norm, first 100 steps): 0.49 -> 0.93 peak at step 40 ->
+  0.47, no NaN, not growing.
+- LR pilots: (TODO, Colab)
+- Q9: (TODO, after pilots)
 
 ## Bugs found vs model limits
 
