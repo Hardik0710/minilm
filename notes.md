@@ -217,6 +217,34 @@ never a valid start byte.)
   ("put the rock on the rock", "the rock could talk"). That is a limit of a
   22.7M-parameter model trained on 41M tokens, not a code bug.
 
+
+## Part 8: Packaging
+- release/ contains exactly the four files the handout lists: model.pt
+  (weights only, about 90 MB), config.json, vocab.json, merges.txt.
+- README command:
+  python inference.py --model-dir release --prompt "Once upon a time"
+  --max-new-tokens 256 --temperature 0.8 --top-p 0.9 --seed 42 --device cpu
+- Same --seed gives an identical story (two runs with seed 42 matched
+  word for word).
+- Acceptance test (fresh clone, new venv, pip install -r requirements.txt,
+  README command): (TODO, paste result)
+- Q11 measured speed: 43.3 and 50.4 tokens/s (two runs, 184 tokens in 4.3 s
+  and 3.7 s), CPU only (--device cpu, PyTorch fp32), on an Intel Core 5 210H
+  (8 cores), 16 GB RAM, Windows. The two runs differ by about 15%, which I
+  treat as CPU noise. The story ended at 184 tokens because the model
+  emitted <|endoftext|> before the 256-token limit.
+- Q11 repeated work (estimate, not measured): with a 4-token prompt and 184
+  generated tokens, no-cache decoding processes about 4+5+...+188, roughly
+  17,700 token positions, versus 188 with a cache, so about 99% of the
+  per-token work is repeated. A KV cache would cut the projections,
+  feed-forward and output layer to one token per step. Attention scores
+  still scale with the context length per step, so that part only goes from
+  quadratic to linear in total. Expected saving is several times in total
+  time, but I did not implement or time a cache. Caveat: once the text
+  passes the 256-token context, the window slides and a simple cache would
+  need extra handling.
+
+  
 ## Bugs found vs model limits
 
 ### Bugs / mistakes in my setup or code (found and fixed)

@@ -9,3 +9,6 @@ tok_valid/
 tok_train/
 vocab.json
 merges.txt
+!release/model.pt
+!release/vocab.json
+!release/merges.txt
