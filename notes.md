@@ -47,38 +47,61 @@ never a valid start byte.)
     assignment allows): 314 s (5.2 min), vocab size 10,000.
 - Peak memory:
   - Valid file: 90 MB (Python allocations only, via tracemalloc).
-  - 500 MB run: NOT measured. (TODO: rerun and read the python.exe peak in
-    Task Manager, or state that it was not recorded.)
+  - 500 MB run: NOT measured. (TODO: rerun and read python.exe peak in Task
+    Manager, or state in the writeup that it was not recorded.)
 - Longest token: b' accomplishment' (15 bytes). It makes sense: the GPT-2
   regex attaches the leading space to a word, and "accomplishment" is a
   common word in simple children's stories, so BPE merged it into one token.
 - Q1 (cProfile) answer: On the valid file (profiled, 288 s total), merging
   dominated. max() over the pair counts took ~51 s of its own time plus ~53 s
   in its key lambda (99.6M calls), because every one of the ~9,743 merges
-  scans all current pairs. Pre-tokenizing (regex match .group(), .encode(),
+  scans all current pairs. Pre-tokenizing (regex .group(), .encode(),
   finditer) took roughly 56 s. Caveat: train_bpe is a single function, so its
-  109 s of own time mixes both phases and the split is approximate. Splitting
-  it into two helper functions would separate them cleanly. On larger files
-  pre-tokenizing grows linearly with file size while merging depends mostly
-  on the number of unique pre-tokens, so the balance shifts toward
+  109 s of own time mixes both phases and the split is approximate. On larger
+  files pre-tokenizing grows linearly with file size while merging depends
+  mostly on the number of unique pre-tokens, so the balance shifts toward
   pre-tokenizing.
 
-## Part 2
-- (fill in after encoding: compression ratio, bytes/s, encode time, Q2 uint16)
+## Part 2: Encode and decode
+- Tokenizer: tokenizer.py with encode, encode_iterable, decode, from_files.
+  Tests in tests/test_tokenizer.py (hand-worked "the cat ate" ->
+  [9, 7, 1, 5, 10, 3], round trip, special token, overlapping specials,
+  iterable == encode, invalid UTF-8 -> U+FFFD).
+  pytest result: 9 passed (3 BPE + 6 tokenizer).
+- Dataset encoding (tokenizer trained on first 500 MB of train file):
+  - Valid: 5,461,342 tokens from 22,502,601 bytes, 4.12 bytes/token,
+    4 s (5.56 MB/s).
+  - Train: 540,810,517 tokens from 2,227,753,162 bytes, 4.12 bytes/token,
+    720 s (12 min), 3.09 MB/s. Saved as uint16 .npy (~1.08 GB).
+  - Speed is higher on the small file; the word cache helps and the
+    larger file has more rare words.
+- Compression ratio on 10 random stories (valid file, seed 0): 4.14
+  bytes/token overall. Per story it ranged from 3.83 to 4.81, so short or
+  unusual stories compress a bit worse or better than the average.
+- Training will use 5,000 x 32 x 256 = 40.96M tokens, about 7.6% of the
+  540.8M-token train array, so the model never sees most of the data.
+- Q2 (why uint16): token IDs are at most 9,999 and uint16 holds 0..65,535,
+  so each token costs 2 bytes instead of 8 (int64). The train array is about
+  1.08 GB instead of ~4.3 GB, and it can be memory-mapped cheaply. It stops
+  being enough when the vocab exceeds 65,536 tokens (e.g. large multilingual
+  vocabularies of 100k+), where uint32 is needed.
 
 ## Bugs found vs model limits
 
 ### Bugs / mistakes in my setup or code (found and fixed)
 - ModuleNotFoundError: No module named 'minilm' when running pytest. Cause:
   project root was not on the import path. Fix: added conftest.py in the root.
-- Saved merges.txt with latin-1 text split on a space. This is ambiguous
-  because a token can contain a space byte. Fix: switched vocab.json and
-  merges.txt to hex encoding.
+- Saved merges.txt with latin-1 text split on a space. Ambiguous because a
+  token can contain a space byte. Fix: switched vocab.json and merges.txt to
+  hex encoding.
 - .gitignore was empty at first, so git status listed data/ (2 GB train
   file). Fixed before the first commit.
 - Profiling overhead: the 288 s timing was inflated by cProfile/tracemalloc.
   Real training time is 36 s.
+- My own time estimates were off (BPE on 500 MB: predicted 15-30 min, took
+  5.2 min; train encode: predicted ~7 min, took 12 min). Reported measured
+  values only.
 
 ### Limits (not bugs)
 - Tokenizer trained on the first 500 MB of the 2 GB train file only.
-- Peak memory numbers are Python-only for the valid file.
+- Peak memory for the 500 MB BPE run was not recorded.
