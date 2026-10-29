@@ -139,10 +139,16 @@ never a valid start byte.)
   90.8 MB, AdamW state 181.6 MB (two buffers per parameter: running mean of
   the gradient m and of the squared gradient v), total about 363 MB before
   activations.
-- torch.compile speedup: (TODO, measure on GPU)
+- torch.compile speedup (Kaggle T4, fp16, batch 32, ctx 256, data on local
+  disk, 200 timed steps after 20 warm-up): no compile 119 and 107 ms/step
+  (two runs), compile 86 ms/step, speedup 1.24x vs the faster uncompiled
+  run. Run-to-run noise on the uncompiled number is about 10%. Compile adds
+  one-off startup time of a minute or two. Inductor warned "Not enough SMs to
+  use max_autotune_gemm" (T4 has 40 SMs); harmless, default kernels were used.
 - fp16 vs fp32 loss test: passed on Kaggle Tesla T4 (full suite: 39 passed,
-  0 skipped). 39 passed in 10.12s on Kaggle
- On the laptop it is skipped because there is no GPU.
+  0 skipped). 39 passed in 10.12s on Kaggle.
+  On the laptop it is skipped because there is no GPU.
+
 ## Part 6
 - train.py: all model/optimizer settings from the command line, np.load with
   mmap_mode="r", validation on a fixed set of 20 batches (seeded once, reused
@@ -164,8 +170,33 @@ never a valid start byte.)
   test_checkpoint_resume_reproduces_losses. Plot: figures/resume.png
 - Check 3 (grad norm, first 100 steps): 0.49 -> 0.93 peak at step 40 ->
   0.47, no NaN, not growing.
-- LR pilots: (TODO, Colab)
-- Q9: (TODO, after pilots)
+- LR pilots (300 steps, fp16, warmup 5%, cosine to lr/10), final val loss:
+  1e-4: 3.9985, 3e-4: 3.3399, 1e-3: 2.8493, 3e-3: 2.8284, 1e-2: 3.4414.
+  3e-2 and 1e-1 blew up (non-finite loss at step <30 and <20 respectively;
+  at 1e-1 the loss was 17.35 and grad norm 18.3 at step 10). Clipping to 1.0
+  did not prevent it, because Adam's update size scales with lr, not with
+  the gradient magnitude.
+- Q9: The best rate (3e-3) is a factor of 10 below the first rate that broke
+  (3e-2), and the next rate above it (1e-2) was stable but clearly worse.
+  So the best rate is below the edge, but not "just below": 1e-2 sits in
+  between and is stable yet inefficient. Statement holds loosely: the
+  optimum is within about an order of magnitude below the blow-up point.
+  3e-3 and 1e-3 were within noise (0.02) of each other.
+- How rates were chosen: log-spaced sweep (1e-4, 3e-4, 1e-3, 3e-3, 1e-2)
+  across the handout's range; since none broke, extended upward (3e-2, 1e-1)
+  until training diverged. Figure: figures/pilots.png
+
+## Part 7
+- Main run: lr 3e-3, 5,000 steps, batch 32, ctx 256 = 40,960,000 tokens,
+  fp16 + torch.compile, Kaggle T4. Warmup 250 steps, cosine to 3e-4,
+  reached exactly at step 5000.
+- Final val loss 1.7435 (fixed 20-batch validation set), perplexity
+  e^1.7435 = 5.72. Beats the 2.0 stretch target. Train loss about 1.7,
+  grad norm about 0.3 at the end, no NaNs or spikes.
+- Saw 41M of 541M available tokens, so no data was repeated.
+- Training time: 472.1 s (7.9 min) on a Kaggle T4, from the last `elapsed`
+  value in runs/main/log.csv (includes torch.compile startup and the 20
+  validation passes).
 
 ## Bugs found vs model limits
 
@@ -182,7 +213,18 @@ never a valid start byte.)
 - My own time estimates were off (BPE on 500 MB: predicted 15-30 min, took
   5.2 min; train encode: predicted ~7 min, took 12 min). Reported measured
   values only.
+- runs/ was committed to git by mistake. Fix: git rm -r --cached runs and
+  added runs/ to .gitignore.
+- Data loading bottleneck on Kaggle: get_batch took 606 ms/step from the
+  memory-mapped file on /kaggle/input (model step: 111 ms). Fix: copied
+  train.npy and valid.npy to /kaggle/temp (local disk); get_batch then took
+  1 ms. The first torch.compile timing (2101 vs 953 ms, 2.21x) was dominated
+  by disk reads and is not reported.
 
 ### Limits (not bugs)
 - Tokenizer trained on the first 500 MB of the 2 GB train file only.
 - Peak memory for the 500 MB BPE run was not recorded.
+- Pilots are only 300 steps, so 3e-3 vs 1e-3 is within noise and may differ
+  over 5,000 steps.
+- fp16 non-finite loss at lr 3e-2 and 1e-1: cause not separated between
+  fp16 overflow and genuine divergence (no fp32 rerun was done).
