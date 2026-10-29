@@ -140,7 +140,9 @@ never a valid start byte.)
   the gradient m and of the squared gradient v), total about 363 MB before
   activations.
 - torch.compile speedup: (TODO, measure on GPU)
-- fp16 vs fp32 loss test: (TODO, runs on Colab; skipped on laptop)
+- fp16 vs fp32 loss test: passed on Kaggle Tesla T4 (full suite: 39 passed,
+  0 skipped). 39 passed in 10.12s on Kaggle
+ On the laptop it is skipped because there is no GPU.
 ## Part 6
 - train.py: all model/optimizer settings from the command line, np.load with
   mmap_mode="r", validation on a fixed set of 20 batches (seeded once, reused
