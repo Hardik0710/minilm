@@ -110,6 +110,23 @@ never a valid start byte.)
   manual computation using slow_attention, param count of FFN
   (3*512*1344 = 2,064,384). pytest: 25 passed.
 
+
+## Part 4
+- Tests: 30 passed (logits shape (2,17,10000), no future leak in full model,
+  initial loss near ln(10000)=9.21, ModuleList/RMSNorm, param count).
+- Q5: embedding 5,120,000; per layer attention 1,048,576 + FFN 2,064,384 +
+  norms 1,024 = 3,113,984; 4 layers 12,455,936; final norm 512; lm_head
+  5,120,000. Total 22,696,448. Embedding + output = 10,240,000 (45%).
+- Q6 (256 tokens): per layer projections 536.9M, scores 67.1M, weights*V
+  67.1M, FFN 1,057.0M = 1,728.1M. 4 layers 6.91G + lm_head 2.62G = 9.53G.
+  FFN is the largest share (44%), then lm_head (27.5%), projections (22.5%),
+  attention scores (5.6%).
+- Q7 (GPT-2 small, 2-matrix FFN d_ff=3072): per layer projections 4.83G,
+  attention 3.22G, FFN 9.66G = 17.72G; 12 layers 212.6G + lm_head 79.05G =
+  291.6G. Attention-score share inside a layer rises 7.8% -> 18.2% (scales
+  with s^2*d vs s*d^2), FFN share falls 61% -> 54.5%, lm_head share is about
+  unchanged (27.5% -> 27.1%).
+
 ## Bugs found vs model limits
 
 ### Bugs / mistakes in my setup or code (found and fixed)
