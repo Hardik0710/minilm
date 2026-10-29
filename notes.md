@@ -127,6 +127,20 @@ never a valid start byte.)
   with s^2*d vs s*d^2), FFN share falls 61% -> 54.5%, lm_head share is about
   unchanged (27.5% -> 27.1%).
 
+## Part 5
+- pytest: 38 passed, 1 skipped (fp16 test needs a GPU).
+- LR warm-up (SGD on mean(w^2), 10 steps): gradient is 0.02*w, so each step
+  multiplies w by (1 - 0.02*lr) and the loss by that squared.
+  lr=1: loss 26.3 -> 18.3 (factor 0.96/step, slow decay).
+  lr=10: 26.3 -> 0.473 (factor 0.64/step, fast decay).
+  lr=100: stays 26.3 (factor -1: weights flip sign, no progress).
+  lr=1000: 26.3 -> 2.7e24 (factor -19, loss x361/step, diverges).
+- Q8 (fp32, 22,696,448 params x 4 bytes): parameters 90.8 MB, gradients
+  90.8 MB, AdamW state 181.6 MB (two buffers per parameter: running mean of
+  the gradient m and of the squared gradient v), total about 363 MB before
+  activations.
+- torch.compile speedup: (TODO, measure on GPU)
+
 ## Bugs found vs model limits
 
 ### Bugs / mistakes in my setup or code (found and fixed)
