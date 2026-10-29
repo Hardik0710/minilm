@@ -104,6 +104,11 @@ never a valid start byte.)
   Reason: rotating q by angle i*w and k by j*w gives q . R((j-i)w) k since
   R(a)^T R(b) = R(b-a); absolute position cancels, only i-j remains.
   Differences in the last digit are float32 rounding.
+- CausalSelfAttention (4 bias-free projections, einops head split, RoPE on
+  q and k only, SDPA is_causal) and FeedForward (SwiGLU, 3 bias-free
+  Linears). Tests: shapes with extra batch dims, no-future-leak, match a
+  manual computation using slow_attention, param count of FFN
+  (3*512*1344 = 2,064,384). pytest: 25 passed.
 
 ## Bugs found vs model limits
 
