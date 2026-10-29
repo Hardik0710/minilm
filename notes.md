@@ -226,8 +226,9 @@ never a valid start byte.)
   --max-new-tokens 256 --temperature 0.8 --top-p 0.9 --seed 42 --device cpu
 - Same --seed gives an identical story (two runs with seed 42 matched
   word for word).
-- Acceptance test (fresh clone, new venv, pip install -r requirements.txt,
-  README command): (TODO, paste result)
+- Acceptance test (fresh git clone into a new folder, new venv, pip install
+  -r requirements.txt, README command): passed on CPU. It printed the same
+  seed-42 story as in the main project (identical text, same torch version).
 - Q11 measured speed: 43.3 and 50.4 tokens/s (two runs, 184 tokens in 4.3 s
   and 3.7 s), CPU only (--device cpu, PyTorch fp32), on an Intel Core 5 210H
   (8 cores), 16 GB RAM, Windows. The two runs differ by about 15%, which I
@@ -244,7 +245,7 @@ never a valid start byte.)
   passes the 256-token context, the window slides and a simple cache would
   need extra handling.
 
-  
+
 ## Bugs found vs model limits
 
 ### Bugs / mistakes in my setup or code (found and fixed)
